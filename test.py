@@ -1,9 +1,3 @@
-# PipePyper
-##  :
-this module is design to simplify the useage of Process in Python.
-
-## usage :
-```python
 import re
 import bs4
 import requests
@@ -26,11 +20,42 @@ def process_page(res,name = None,logger = None):
 	return res
 
 def test():
-	p = reversePipe(range(100)).mp_map(get_guba_list,5).mp_map(process_page,2).chainElements(1)#.map(lambda x:x.strip('\n'))
+	p = reversePipe(range(100)).mp_map(get_guba_list,5).mp_map(process_page,2).chainElements(1).map(lambda x:x.strip('\n'))
 	for i in p:
 		print(i)
 	return None
+	# res = p.collect()
+	# print(res)
+
+import time
+
+def sleep1(data,name=None,logger=None):
+	# lg.log('rc')
+	time.sleep(0.5)
+	lg.log('send')
+	return 'test1!'
+
+
+def sleep2(data,name=None,logger=None):
+	lg.log('receive data')
+	time.sleep(0.5)
+	return 'test2!'
+
+def test_sleep():
+
+	p = PipeSet(sleep,{},2)
+	p.start()
+	range(10)>=p
+	
+	for i in p.g_collect():
+		print(i)
+
+def test_reverse():
+	for i in reversePipe(range(100)).filter(lambda x:True).mp_map(sleep1,2).mp_map(sleep2,2).filter(lambda x:x):
+	# for i in p:
+		print(i)
+
 
 if __name__=="__main__":
+
 	test()
-```

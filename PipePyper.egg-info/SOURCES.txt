@@ -1,0 +1,11 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+PipePyper/PipePyper.py
+PipePyper/__init__.py
+PipePyper/mytools.py
+PipePyper.egg-info/PKG-INFO
+PipePyper.egg-info/SOURCES.txt
+PipePyper.egg-info/dependency_links.txt
+PipePyper.egg-info/top_level.txt
