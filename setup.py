@@ -9,11 +9,11 @@ from setuptools import setup, find_packages
 
 setup(
   	name="PipePyper",
-  	version="2.3.6",
+  	version="2.3.7",
   	description="multiThreading calculation FrameWork",
   	author="pyEric",
   	author_email="hongyz1993@163.com",
     packages = find_packages(), 
-    url = 'http://who_ever_care.com'
+    url = 'https://github.com/HongYuzhuang/PipePyper'
 )
 
