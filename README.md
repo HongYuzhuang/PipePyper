@@ -1,8 +1,10 @@
 # PipePyper
-##  :
 this module is design to simplify the useage of Process in Python.
 
-## usage :
+## Install:
+pip install PipePyper
+
+## Usage :
 ```python
 import re
 import bs4
