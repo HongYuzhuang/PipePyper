@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 
 setup(
   	name="PipePyper",
-  	version="2.3.7",
+  	version="2.4.1",
   	description="multiThreading calculation FrameWork",
   	author="pyEric",
   	author_email="hongyz1993@163.com",

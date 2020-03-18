@@ -1,37 +1,59 @@
+
 import re
+import time
 import bs4
 import requests
 from PipePyper.PipePyper  import PipeSet,reversePipe,mem_db
 from PipePyper.mytools import logger,chainElements
-lg=logger('.','test',P=True)
+lg=logger('.','test',P=False)
 
-def get_guba_list(page,test ,logger =None):
+def get_guba_list(page,logger =None):
 	url = 'http://guba.eastmoney.com/list,gssz_{}.html'.format(page)
 	res=requests.get(url)
 	logger.log('finish downLoad page : {}'.format(page))
-	test[url] = page
+	# test[url] = page
+
 	return url,res.text
 	# return None
+def s(data):
+	return data
 
-def process_page(res,logger = None,cum=None):
+def process_page(res,logger = None):
 	el_class = 'articleh normal_post'
 	url,page = res
 	soup = bs4.BeautifulSoup(page,'lxml')
 
-	cum[url]= 1
 	res = [i.text for  i in soup.find_all('div',{'class':el_class})]
-	logger.log('finish process {}'.format(cum))
+	logger.log('finish process {}'.format(url))
 	return res
 
-def test():
+def test_1(data):
+	time.sleep(1)
+	return data
+
+def test_2(data):
+	time.sleep(1)
+	return data
+
+def test_case():
 	t = mem_db()
-	p = reversePipe(range(100)).mp_map(get_guba_list,3,{'test':t}).mp_map(process_page,2,{},cum=True).chainElements(1).map(lambda x:x.strip('\n'))
+
+	p = reversePipe(range(5),lg).mp_map(get_guba_list,1).mp_map(s,1).mp_map(process_page,1,{}).chainElements(1).map(lambda x:x.strip('\n'))
+	
 	for i in p:
 		print(i)
-	print(t)
+	# print(t)
+	return None
+
+def test():
+
+	p = reversePipe(range(5),lg).mp_map(test_1,1).mp_map(test_2,1).mp_map(test_1,1,{})
+	
+	for i in p:
+		print(i)
+	# print(t)
 	return None
 
 
 if __name__=="__main__":
-
 	test()

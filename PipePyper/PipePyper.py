@@ -9,7 +9,7 @@ import sys
 import time
 import random
 
-from functools import partial
+from functools import partial,reduce
 from .mytools import parseDate,timeAJ,logger,chainElements
 
 import multiprocessing
@@ -19,7 +19,9 @@ class endSignal(Exception):
 	""" 
 	管道数据结束信号 
 	"""
-	pass
+
+	def __str__(self):
+		return 'endSig'
 class filteredData(Exception):
 	"""
 		管道数据流过滤
@@ -41,6 +43,8 @@ class pipe(object):
 		"""
 		self.t_func=t_func
 
+		self.name = str(int(random.random()*100))
+
 		self.add_logger  = 'logger' in t_func.__code__.co_varnames
 
 		self.c_data=c_data
@@ -56,10 +60,9 @@ class pipe(object):
 
 		self.try_Count=try_Count
 		self.extract_rate=extract_rate
+
 	def end(self):
-		self.ip_q.put(endSignal())
-		self.ot_q.put(endSignal())
-		raise Exception('closs pipe')
+		return True
 	def pipeLoop(self):
 		"""
 			循环体
@@ -67,12 +70,13 @@ class pipe(object):
 			-##新增预警:拥塞重传时 若存在 主控器,向主控器报告重传次数
 			-接受endSignal 结束循环
 		"""
+		end_flag=False
 		if self.ps ==None:
 			raise Exception('no actived pipe')
-		while(True):
+
+		while(not (self.ip_q.empty() and end_flag )  ):
 			data=self.ip_q.get()
-			# if data==None:
-			# 	continue
+			# self.logger.log('{},{} get : {}'.format(self.__class__,self.name,data))
 			if data.__class__ not in ( endSignal,filteredData):
 					if self.extract_rate<1:
 						if random.random()>self.extract_rate:
@@ -99,18 +103,18 @@ class pipe(object):
 				continue
 			
 			elif data.__class__ == endSignal:
-				try:
-					self.end()
-				except Exception:
-					break
+				end_flag =self.end()
+		
+		self.ot_q.put(endSignal())
 
 	def __lt__(self,iterable):
 		"""
 			从管道输入数组
 		"""
 		if getattr(iterable,'__iter__',None)!=None:
+
 			for i in iterable:
-				# print(i)
+				# self.logger.log('input {} into :{} ,'.format(i,self.name))
 				self.ip_q.put(i)
 		else:
 			raise Exception('insert iterable plz')
@@ -172,6 +176,7 @@ class pipe(object):
 						insert_func.__call__(r)	
 				except Exception:
 					break
+			
 			return R
 		else:
 			return self.t.collect(format)
@@ -189,12 +194,11 @@ class pipe(object):
 				try:
 					r=self.ot_q.get(timeout=self.timeout)
 					if r.__class__!=endSignal:
-						# print('1')
 						yield r
 				except Exception:
 					break
 		else:
-			return self.t.collect(format)
+			return self.t.g_collect(format)
 
 	def start(self):
 		"""
@@ -227,14 +231,7 @@ class pipe(object):
 		if self.ps ==None:
 			raise Exception('no actived pipe')
 		self.ps.join(timeout)
-	# def close(self):
-	# 	self.ip_q.put(endSignal())
-	# 	return 1
-	# def shutdown(self):
-	# 	self.close()
-	# 	self.join(timeout=10)
-	# 	if self.ps.is_alive():
-	# 		self.ps.terminate()
+
 	def init(cl,t_func,c_data,cache_size=1000,timeout=10,try_Count=10,extract_rate=1):
 		return cl(t_func,c_data,cache_size,timeout,try_Count,extract_rate)
 
@@ -280,11 +277,12 @@ class PipeSet(pipe):
 		管道子类 ：管道组
 		-- 替换单个管道使用
 	"""
-	def __init__(self,t_func,c_data,p_num,cache_size=0,timeout=10,try_Count=10,extract_rate=1,static_val=1000,static=False,cum=False):
+	def __init__(self,t_func,c_data,p_num,cache_size=100,timeout=10,try_Count=10,extract_rate=1,static_val=1000,static=False,cum=False):
 		""" 
 			--调用父类构造函数
 			--pipes	: 初始化一组管道
 		# """
+		# print(static)
 		self.extract_rate=extract_rate
 		super(self.__class__,self).__init__(t_func,c_data,cache_size=cache_size,timeout=timeout,try_Count=try_Count,extract_rate=self.extract_rate)
 		self.genPipe=partial(pipe.init,cl=(cumPipe if cum else pipe),t_func=t_func,c_data=c_data,cache_size=cache_size,timeout=timeout,try_Count=try_Count,extract_rate=extract_rate)
@@ -336,14 +334,19 @@ class adapter(pipe):
 		self.static_val=self.pipeset.static_val
 		self.lt=time.time()
 		self.static=static
+
 	def end(self):
 		self.check_count+=1
+
 		if self.logger!=None:
 			self.logger.log(' {}/{}'.format(self.check_count,self.p_num))
-		if self.check_count==self.p_num:
-			self.ot_q.put(endSignal())
-			self.ip_q.put(endSignal())
-			raise Exception('Task Done')
+
+		if self.check_count>=self.p_num:
+			return True
+		else:
+			return  False
+			# self.ot_q.put(endSignal())
+			# raise Exception('Task Done')
 
 def mem_db():
 	return Manager().dict()
@@ -382,7 +385,17 @@ def ft_timer(logger,val):
 			return r
 		return warpper
 	return kwrapper
+def shards(ITER,shard_size):
+	tmp_pack = []
 
+	for I in ITER:
+		if len(tmp_pack)<shard_size:
+			tmp_pack.append(I)
+		else:
+			yield tmp_pack
+			tmp_pack=[]
+	if tmp_pack:
+		yield tmp_pack
 
 class reversePipe(object):
 	def __init__(self,pipe,lg=None):
@@ -393,6 +406,9 @@ class reversePipe(object):
 
 	def sort_and_groupby(self,key):
 		return reversePipe(sort_and_groupby(iter(self),key=key),self.lg)
+
+	def shardby(self,size):
+		return reversePipe(shards(iter(self),shard_size= size),self.lg )
 	def show(self):
 		def s(data):
 			print(data)
@@ -406,21 +422,33 @@ class reversePipe(object):
 		return reversePipe(map(lambda x:self.tlg(func)(x),iter(self)),self.lg)
 	def map(self,func):
 		return reversePipe(map(lambda x:func(x),iter(self)),self.lg)
-	def mp_map(self,func,num=10,c_data ={},cum=False):
+	def mp_map(self,func,num=10,c_data ={},cum=False,**kwargs):
 		'''
 			多进程
 		'''
+		# print(kwargs)
 		self.func=func
-		ps = PipeSet(self.func,c_data,num,cum=cum)+(self.lg if self.lg else simple_logger())
+		ps = PipeSet(self.func,c_data,num,timeout=None,cum=cum,**kwargs)+(self.lg if self.lg else simple_logger())
 
 		return mp_reverse_pipe(ps,self,self.lg)
 	def filter(self,func):
 		return reversePipe(filter(lambda x:func(x),iter(self)),self.lg)
-	def reduce(self,func):
-		return reversePipe(reduce(func,iter(self)),self.lg)
+	def reduce(self,func,init=None):
+		if init:
+			res= reduce(func,iter(self),init)
+		else:
+			res= reduce(func,iter(self))
+		if getattr(res,'__iter__',None)==None:
+			res= [res]
+		# else:
+		return reversePipe(res,self.lg)
+
 
 	def __iter__(self):
+		# print(self.pipe)
 		return self.pipe.__iter__()
+		# else:
+			# return self.pipe
 	def collect(self):
 		return list(self)
 	def chainElements(self,p_level):
@@ -439,25 +467,25 @@ class mp_reverse_pipe(reversePipe):
 		self.lg= lg 
 	def activate(self):
 		self.pipe.run()
-		# print('1')
+
 		if isinstance(self.src,reversePipe):
-			# print(self.src.__class__)
 			self.src.activate()
 
+
 		if self.src.__class__!=mp_reverse_pipe :
-			# print('insert')
 			self.src.pipe >= self.pipe
 		# else:
 			# print(self)
 			# print(self.src)
 
-	def mp_map(self,func,num,c_data={},cum=False):
+	def mp_map(self,func,num,c_data={},cum=False,**kwargs):
 		'''
 			多进程
 		'''
+		# print(kwargs)
 		self.func=func
-		ps = PipeSet(self.func,c_data,num,cum=cum)+(self.lg if self.lg else simple_logger())
-		ps.run()
+		ps = PipeSet(self.func,c_data,num,timeout=None,cum=cum,**kwargs)+(self.lg if self.lg else simple_logger())
+		# ps.run()
 		self.pipe>>ps
 		# print('connect!')
 		return mp_reverse_pipe(ps,self,self.lg)
