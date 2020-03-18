@@ -17,7 +17,6 @@ def get_guba_list(page,logger =None):
 	# return None
 def s(data):
 	return data
-
 def process_page(res,logger = None):
 	el_class = 'articleh normal_post'
 	url,page = res
@@ -27,8 +26,10 @@ def process_page(res,logger = None):
 	logger.log('finish process {}'.format(url))
 	return res
 
-def test_1(data):
+def test_1(data,logger=None):
+	logger.log('get {}'.format(data))
 	time.sleep(1)
+	logger.log('send {}'.format(data))
 	return data
 
 def test_2(data):
@@ -47,7 +48,7 @@ def test_case():
 
 def test():
 
-	p = reversePipe(range(5),lg).mp_map(test_1,1).mp_map(test_2,1).mp_map(test_1,1,{})
+	p = reversePipe(range(1000),lg).mp_map(test_1,2).mp_map(test_1,2).mp_map(test_1,4)#.mp_map(test_1,1,{})
 	
 	for i in p:
 		print(i)
