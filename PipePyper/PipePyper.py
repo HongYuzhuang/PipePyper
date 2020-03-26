@@ -30,7 +30,7 @@ class filteredData(Exception):
 	pass
 
 class pipe(object):
-	def __init__(self,t_func,c_data,cache_size=0,timeout=10,try_Count=10,extract_rate=1):
+	def __init__(self,t_func,c_data,cache_size=0,timeout=None,try_Count=10,extract_rate=1):
 		"""
 			timeout	,管道等待超时时长
 			ot_q	,输出队列
@@ -242,7 +242,7 @@ class pipe(object):
 			raise Exception('no actived pipe')
 		self.ps.join(timeout)
 
-	def init(cl,t_func,c_data,cache_size=1000,timeout=10,try_Count=10,extract_rate=1):
+	def init(cl,t_func,c_data,cache_size=1000,timeout=None,try_Count=10,extract_rate=1):
 		return cl(t_func,c_data,cache_size,timeout,try_Count,extract_rate)
 
 class cumPipe(pipe):
@@ -287,7 +287,7 @@ class PipeSet(pipe):
 		管道子类 ：管道组
 		-- 替换单个管道使用
 	"""
-	def __init__(self,t_func,c_data,p_num,cache_size=10,timeout=10,try_Count=10,extract_rate=1,static_val=1000,static=False,cum=False):
+	def __init__(self,t_func,c_data,p_num,cache_size=1000000,timeout=None,try_Count=10,extract_rate=1,static_val=1000,static=False,cum=False):
 		""" 
 			--调用父类构造函数
 			--pipes	: 初始化一组管道
@@ -335,7 +335,7 @@ class adapter(pipe):
 					logger.log( "pv : {}/s" .format(self.static_val/(self.lt-ot)))
 		return r
 	def __init__(self,pipeset,static=True):
-		super(self.__class__,self).__init__(t_func=self.lineFunc,c_data={},cache_size=0)
+		super(self.__class__,self).__init__(t_func=self.lineFunc,c_data={},cache_size=0,timeout=None)
 		self.pipeset=pipeset
 		self.check_count=0
 		self.processed_num=0
@@ -414,7 +414,7 @@ class reversePipe(object):
 		self.pipe=pipe
 		self.func=None
 		self.tlg= ft_timer(simple_logger(),0.01)
-		self.lg = lg
+		self.lg = lg if lg else simple_logger()
 
 	def sort_and_groupby(self,key):
 		return reversePipe(sort_and_groupby(iter(self),key=key),self.lg)
@@ -476,7 +476,7 @@ class mp_reverse_pipe(reversePipe):
 	def __init__(self,ps,src=None,lg=None):
 		self.pipe=ps
 		self.src=src
-		self.lg= lg 
+		self.lg= lg  if lg else simple_logger()
 	def activate(self):
 		self.pipe.run(solo=True)
 		# time.sleep(1)
@@ -503,7 +503,7 @@ class mp_reverse_pipe(reversePipe):
 		return mp_reverse_pipe(ps,self,self.lg)
 	def __iter__(self):
 		# print(self.pipe)
-		self.lg.log('fully connected')
+		print('fully connected')
 		self.activate()
 		return self.pipe.g_collect()
 

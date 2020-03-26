@@ -28,12 +28,12 @@ def process_page(res,logger = None):
 
 def test_1(data,logger=None):
 	logger.log('get {}'.format(data))
-	time.sleep(1)
+	time.sleep(0.1)
 	logger.log('send {}'.format(data))
 	return data
 
 def test_2(data):
-	time.sleep(1)
+	time.sleep(0.1)
 	return data
 
 def test_case():
@@ -48,7 +48,7 @@ def test_case():
 
 def test():
 
-	p = reversePipe(range(1000),lg).mp_map(test_1,2).mp_map(test_1,2).mp_map(test_1,4)#.mp_map(test_1,1,{})
+	p = reversePipe(range(40)).mp_map(test_1,4).mp_map(test_1,4).mp_map(test_1,4)#.mp_map(test_1,1,{})
 	
 	for i in p:
 		print(i)
